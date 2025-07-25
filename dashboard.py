@@ -3,23 +3,25 @@
 import os
 import streamlit as st
 import numpy as np
+# File: dashboard.py
+
+import os
 import json
 import hashlib
 from datetime import datetime
 import base64
 import pandas as pd
+import numpy as np
 import tenseal as ts
+import streamlit as st
 
 st.set_page_config(page_title="Confidential Student Dashboard", layout="centered")
 st.title("🔐 Confidential Student Score Input Dashboard")
 
 BLOCKCHAIN_FILE = "student_chain.json"
-SCHOOL_NAME = "Greenfield High"
 CONTEXT_FILE = "C:/Users/Hevert/AppData/Local/Programs/Python/Python312/encryption/tenseal_context.tenseal"
 
-
-# Blockchain Functions
-
+# ========= Blockchain Functions =========
 def calculate_hash(block):
     block_string = json.dumps(block, sort_keys=True).encode()
     return hashlib.sha256(block_string).hexdigest()
@@ -34,13 +36,14 @@ def save_chain(chain):
     with open(BLOCKCHAIN_FILE, "w") as f:
         json.dump(chain, f, indent=4)
 
-def add_block(student_id, term, data):
+def add_block(student_id, term, data, school_name):
     chain = load_chain()
     prev_hash = chain[-1]['hash'] if chain else "0" * 64
     block = {
         "timestamp": str(datetime.utcnow()),
         "student_id": student_id,
         "term": term,
+        "school": school_name,
         "data": data,
         "prev_hash": prev_hash
     }
@@ -48,25 +51,27 @@ def add_block(student_id, term, data):
     chain.append(block)
     save_chain(chain)
 
-
-# HE Context Setup
-
+# ========= HE Context Setup =========
 def get_context():
     with open(CONTEXT_FILE, "rb") as f:
         return ts.context_from(f.read())
 
+# ========= School Name Input =========
+if "school_name" not in st.session_state:
+    st.session_state.school_name = ""
 
-# Dashboard Form
+st.header("🏫 Enter School Name")
+st.session_state.school_name = st.text_input("📘 School Name", st.session_state.school_name or "Greenfield High")
 
+# ========= Dashboard Form =========
 st.header("✏️ Enter Student Data")
 st.markdown("🔒 **All submissions are encrypted before analysis and blockchain logging.**")
 
-# Use session state to reset inputs after submission
 if "submitted_once" not in st.session_state:
     st.session_state.submitted_once = False
 
 with st.form("student_input_form"):
-    st.text(f"🏫 School: {SCHOOL_NAME}")
+    st.text(f"🏫 School: {st.session_state.school_name}")
     student_id = st.text_input("🎓 Student ID", "" if st.session_state.submitted_once else "student1")
 
     terms = ["Term 1", "Term 2"]
@@ -144,15 +149,13 @@ if submitted:
             "reason": risk_reason
         }
 
-        add_block(student_id, term, student_data)
+        add_block(student_id, term, student_data, st.session_state.school_name)
 
     st.success("📦 **Student data for both terms encrypted and recorded in blockchain log.**")
     st.caption("🔐 Note: This submission is permanently recorded on the blockchain (secure, tamper-proof log). View full log using `blockchain_viewer.py`.")
     st.session_state.submitted_once = True
 
-
-# Student Progress Viewer
-
+# ========= Student Progress Viewer =========
 st.header("📊 View Student Progress")
 st.markdown("Compare how a student's scores and risk level changed over time.")
 
@@ -190,7 +193,6 @@ if all_ids:
         risk_df = pd.DataFrame(risk_details)
         st.dataframe(risk_df)
 
-        # Compute average risk level
         risk_score_map = {"Low Risk": 1, "Medium Risk": 2, "High Risk": 3}
         numeric_scores = [risk_score_map.get(risk, 0) for risk in risks]
 
@@ -208,3 +210,4 @@ if all_ids:
             st.info(f"**{overall_risk}** (based on average across all terms)")
 else:
     st.info("No student data available yet. Please submit entries first.")
+
