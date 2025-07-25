@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+tenseal_context_public.tenseal
+venv/
